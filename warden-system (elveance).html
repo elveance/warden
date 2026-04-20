@@ -1,0 +1,1601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WARDEN — Daily Surveillance System</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Barlow+Condensed:wght@400;500;600;700;800&family=Barlow:wght@300;400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+--bg:#080c0a;--surface:#0e1310;--surface2:#141a17;--border:#1e2823;--border2:#253028;
+--green:#00ff7f;--green-dim:#00cc66;--green-dark:#003d1f;--green-faint:#0a1f12;
+--red:#ff4444;--amber:#ffaa00;--blue:#00aaff;--muted:#4a5e52;--text:#d4e8db;--text2:#8aab94;
+--study:#00ff7f;--work:#ffaa00;--personal:#00aaff;
+}
+body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;min-height:100vh;overflow-x:hidden;}
+.mono{font-family:'Space Mono',monospace;}
+.cond{font-family:'Barlow Condensed',sans-serif;}
+
+/* HEADER */
+.header{padding:28px 24px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.warden-badge{background:var(--green);color:#000;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;padding:5px 12px;letter-spacing:2px;}
+.header-title{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:800;color:#fff;letter-spacing:-0.5px;}
+.header-title span{color:var(--green);}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.live-clock{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:var(--green);}
+.live-date{font-size:11px;color:var(--muted);font-family:'Space Mono',monospace;}
+
+/* STATUS BAR */
+.status-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;gap:24px;align-items:center;flex-wrap:wrap;}
+.status-item{display:flex;align-items:center;gap:8px;font-size:12px;font-family:'Space Mono',monospace;}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.dot-green{background:var(--green);box-shadow:0 0 6px var(--green);}
+.dot-amber{background:var(--amber);}
+.dot-red{background:var(--red);}
+.dot-blue{background:var(--blue);}
+.status-label{color:var(--muted);}
+.status-val{color:var(--text);}
+
+/* LAYOUT */
+.main-layout{display:grid;grid-template-columns:300px 1fr;min-height:calc(100vh - 120px);}
+@media(max-width:900px){.main-layout{grid-template-columns:1fr;}}
+
+/* SIDEBAR */
+.sidebar{border-right:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;}
+.sidebar-section{border-bottom:1px solid var(--border);padding:16px;}
+.sidebar-label{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:12px;}
+
+/* NAV TABS */
+.nav-tabs{display:flex;flex-direction:column;gap:2px;}
+.nav-tab{padding:10px 12px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:600;letter-spacing:0.5px;cursor:pointer;border:1px solid transparent;color:var(--muted);transition:all 0.15s;display:flex;align-items:center;gap:10px;}
+.nav-tab:hover{background:var(--surface2);color:var(--text);}
+.nav-tab.active{border-color:var(--border2);background:var(--green-faint);color:var(--green);}
+.nav-tab .tab-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.tab-study{background:var(--study);}
+.tab-work{background:var(--work);}
+.tab-personal{background:var(--personal);}
+.tab-day{background:var(--green);}
+
+/* PROGRESS RINGS */
+.progress-section{display:flex;gap:12px;flex-wrap:wrap;}
+.ring-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.ring-label{font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;text-align:center;}
+.ring-val{font-size:11px;font-weight:700;font-family:'Space Mono',monospace;}
+
+/* STREAK */
+.streak-display{display:flex;align-items:baseline;gap:6px;}
+.streak-num{font-family:'Barlow Condensed',sans-serif;font-size:40px;font-weight:800;color:var(--green);line-height:1;}
+.streak-unit{font-size:12px;color:var(--muted);font-family:'Space Mono',monospace;}
+
+/* AVOIDANCE METER */
+.avoidance-bar{height:6px;background:var(--border2);border-radius:3px;overflow:hidden;margin-top:6px;}
+.avoidance-fill{height:100%;border-radius:3px;transition:width 0.3s;background:var(--green);}
+.avoidance-fill.warning{background:var(--amber);}
+.avoidance-fill.danger{background:var(--red);}
+
+/* MAIN CONTENT */
+.main-content{padding:0;}
+
+/* SECTION PANELS */
+.panel{display:none;padding:20px 24px;}
+.panel.active{display:block;}
+.panel-header{margin-bottom:20px;}
+.panel-title{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800;color:#fff;display:flex;align-items:center;gap:10px;}
+.panel-title .accent-study{color:var(--study);}
+.panel-title .accent-work{color:var(--work);}
+.panel-title .accent-personal{color:var(--personal);}
+.panel-title .accent-day{color:var(--green);}
+
+/* TASK BLOCK */
+.task-block{background:var(--surface);border:1px solid var(--border);margin-bottom:10px;transition:border-color 0.15s;}
+.task-block:hover{border-color:var(--border2);}
+.task-block.done{opacity:0.5;border-color:var(--border);}
+.task-block.done .task-name{text-decoration:line-through;color:var(--muted);}
+.task-header{display:flex;align-items:center;gap:10px;padding:12px 14px;}
+.task-checkbox{width:18px;height:18px;border:1.5px solid var(--border2);background:transparent;cursor:pointer;flex-shrink:0;position:relative;appearance:none;-webkit-appearance:none;}
+.task-checkbox:checked{background:var(--green);border-color:var(--green);}
+.task-checkbox:checked::after{content:'';position:absolute;left:5px;top:2px;width:5px;height:9px;border:2px solid #000;border-top:none;border-left:none;transform:rotate(45deg);}
+.task-name{font-size:15px;font-weight:500;flex:1;color:var(--text);}
+.task-type{font-size:10px;font-family:'Space Mono',monospace;padding:2px 8px;border:1px solid;flex-shrink:0;}
+.task-type.study{color:var(--study);border-color:var(--study);}
+.task-type.work{color:var(--work);border-color:var(--work);}
+.task-type.personal{color:var(--personal);border-color:var(--personal);}
+.task-meta{padding:0 14px 12px;display:flex;gap:12px;flex-wrap:wrap;}
+.task-meta-item{font-size:11px;color:var(--muted);font-family:'Space Mono',monospace;}
+
+/* TIMER */
+.timer-card{background:var(--surface);border:1px solid var(--border);padding:20px;margin-bottom:20px;}
+.timer-display{font-family:'Space Mono',monospace;font-size:56px;font-weight:700;color:var(--green);letter-spacing:-2px;line-height:1;text-align:center;margin:12px 0;}
+.timer-display.warning{color:var(--amber);}
+.timer-display.break-mode{color:var(--blue);}
+.timer-label{font-size:11px;font-family:'Space Mono',monospace;letter-spacing:2px;color:var(--muted);text-align:center;text-transform:uppercase;}
+.timer-controls{display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap;}
+.btn{padding:8px 18px;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;cursor:pointer;border:1px solid;letter-spacing:1px;transition:all 0.15s;}
+.btn-green{background:transparent;color:var(--green);border-color:var(--green);}
+.btn-green:hover{background:var(--green);color:#000;}
+.btn-red{background:transparent;color:var(--red);border-color:var(--red);}
+.btn-red:hover{background:var(--red);color:#fff;}
+.btn-amber{background:transparent;color:var(--amber);border-color:var(--amber);}
+.btn-amber:hover{background:var(--amber);color:#000;}
+.btn-muted{background:transparent;color:var(--muted);border-color:var(--border2);}
+.btn-muted:hover{background:var(--surface2);color:var(--text);}
+.btn-blue{background:transparent;color:var(--blue);border-color:var(--blue);}
+.btn-blue:hover{background:var(--blue);color:#000;}
+.btn:disabled{opacity:0.3;cursor:not-allowed;}
+
+/* BLOCK TRACKER */
+.block-tracker{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+.block-dot{width:28px;height:28px;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:10px;font-family:'Space Mono',monospace;color:var(--muted);}
+.block-dot.done{background:var(--green-dark);border-color:var(--green);color:var(--green);}
+.block-dot.active{border-color:var(--green);color:var(--green);animation:pulse 1s infinite;}
+.block-dot.break{background:#001a2e;border-color:var(--blue);color:var(--blue);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+
+/* ALERT BOXES */
+.alert{padding:12px 16px;border-left:3px solid;margin-bottom:10px;font-size:13px;line-height:1.6;}
+.alert-red{border-color:var(--red);background:rgba(255,68,68,0.06);color:#ffaaaa;}
+.alert-amber{border-color:var(--amber);background:rgba(255,170,0,0.06);color:#ffddaa;}
+.alert-green{border-color:var(--green);background:rgba(0,255,127,0.06);color:#aaffcc;}
+.alert-blue{border-color:var(--blue);background:rgba(0,170,255,0.06);color:#aaddff;}
+.alert strong{display:block;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:1px;margin-bottom:4px;text-transform:uppercase;}
+
+/* FORMS */
+.form-row{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+.form-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:120px;}
+.form-label{font-size:10px;font-family:'Space Mono',monospace;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+.form-input{background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:8px 10px;font-family:'Barlow',sans-serif;font-size:14px;outline:none;transition:border-color 0.15s;}
+.form-input:focus{border-color:var(--green);}
+.form-select{background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:8px 10px;font-family:'Barlow',sans-serif;font-size:14px;outline:none;cursor:pointer;}
+.form-select:focus{border-color:var(--green);}
+
+/* SCHEDULE GRID */
+.schedule-slot{display:flex;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);align-items:flex-start;}
+.slot-time{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);flex-shrink:0;padding-top:2px;width:52px;}
+.slot-content{flex:1;}
+.slot-block{padding:6px 10px;font-size:13px;font-weight:500;margin-bottom:2px;}
+.slot-study{background:rgba(0,255,127,0.08);border-left:2px solid var(--study);color:var(--text);}
+.slot-work{background:rgba(255,170,0,0.08);border-left:2px solid var(--work);color:var(--text);}
+.slot-personal{background:rgba(0,170,255,0.08);border-left:2px solid var(--personal);color:var(--text);}
+.slot-system{background:rgba(74,94,82,0.15);border-left:2px solid var(--muted);color:var(--muted);}
+.slot-nap{background:rgba(0,170,255,0.05);border-left:2px solid var(--blue);color:#aaddff;}
+
+/* WARDEN ALERTS */
+.warden-log{max-height:200px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);padding:12px;}
+.log-entry{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);padding:3px 0;border-bottom:1px solid var(--border);}
+.log-entry:last-child{border:none;}
+.log-entry .log-time{color:var(--green);}
+.log-entry .log-warn{color:var(--amber);}
+.log-entry .log-alert{color:var(--red);}
+
+/* GRID UTILS */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+@media(max-width:600px){.grid-2{grid-template-columns:1fr;}.grid-3{grid-template-columns:1fr;}}
+.stat-card{background:var(--surface);border:1px solid var(--border);padding:14px;}
+.stat-num{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:800;line-height:1;}
+.stat-unit{font-size:12px;color:var(--muted);font-family:'Space Mono',monospace;margin-top:2px;}
+.sep{height:1px;background:var(--border);margin:16px 0;}
+
+/* AVOIDANCE TRIGGER LIST */
+.trigger-item{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface);border:1px solid var(--border);margin-bottom:6px;}
+.trigger-icon{font-size:14px;width:20px;text-align:center;}
+.trigger-text{font-size:13px;color:var(--text);flex:1;}
+.trigger-override{font-size:10px;font-family:'Space Mono',monospace;color:var(--green);cursor:pointer;border:1px solid var(--green);padding:3px 8px;}
+.trigger-override:hover{background:var(--green);color:#000;}
+
+/* CUSTOMIZER */
+.config-section{background:var(--surface);border:1px solid var(--border);padding:16px;margin-bottom:12px;}
+.config-title{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:#fff;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border2);}
+
+/* BLINK */
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+.blink{animation:blink 1s step-end infinite;}
+
+/* NOTIFICATION */
+.notif{position:fixed;top:20px;right:20px;background:var(--surface);border:1px solid var(--border);padding:14px 18px;font-family:'Space Mono',monospace;font-size:12px;max-width:280px;z-index:1000;border-left:3px solid var(--green);transform:translateX(400px);transition:transform 0.3s;}
+.notif.show{transform:translateX(0);}
+.notif.warn{border-left-color:var(--amber);}
+.notif.danger{border-left-color:var(--red);}
+
+/* INTERVENTION OVERLAY */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:900;display:none;align-items:center;justify-content:center;}
+.overlay.show{display:flex;}
+.overlay-box{background:var(--surface);border:1px solid var(--red);padding:28px;max-width:400px;width:90%;}
+.overlay-title{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;color:var(--red);margin-bottom:12px;}
+.overlay-body{font-size:14px;color:var(--text);line-height:1.7;margin-bottom:20px;}
+.overlay-action{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:14px;}
+
+/* PHASE INDICATOR */
+.phase-row{display:flex;gap:0;margin-bottom:16px;overflow:hidden;}
+.phase{flex:1;padding:8px 4px;text-align:center;font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;border-right:1px solid var(--border);color:var(--muted);border-bottom:2px solid transparent;}
+.phase.current{color:var(--green);border-bottom-color:var(--green);background:var(--green-faint);}
+.phase.past{color:var(--muted);border-bottom-color:var(--border2);}
+.phase:last-child{border-right:none;}
+</style>
+</head>
+<body>
+
+<div class="notif" id="notif"></div>
+<div class="overlay" id="overlay">
+  <div class="overlay-box">
+    <div class="overlay-title" id="overlay-title">AVOIDANCE DETECTED</div>
+    <div class="overlay-body" id="overlay-body">You've been idle for too long. Your avoidance loop is activating.</div>
+    <div class="overlay-action" id="overlay-action">→ Step 1: Sit down. Open your material. Start the timer.</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-green" onclick="dismissOverlay('resume')">I'M BACK — RESUME</button>
+      <button class="btn btn-amber" onclick="dismissOverlay('replan')">REPLAN NOW</button>
+    </div>
+  </div>
+</div>
+
+<header class="header">
+  <span class="warden-badge">WARDEN</span>
+  <span class="header-title"><span>DAILY</span> SURVEILLANCE SYSTEM</span>
+  <div class="header-right">
+    <div>
+      <div class="live-clock mono" id="clock">00:00:00</div>
+      <div class="live-date mono" id="date-display">Loading...</div>
+    </div>
+  </div>
+</header>
+
+<div class="status-bar">
+  <div class="status-item"><span class="status-dot dot-green"></span><span class="status-label">STATUS</span><span class="status-val" id="current-phase-status">INITIALIZING</span></div>
+  <div class="status-item"><span class="status-dot dot-amber"></span><span class="status-label">BLOCKS DONE</span><span class="status-val" id="blocks-done-status">0 / 4</span></div>
+  <div class="status-item"><span class="status-dot dot-blue"></span><span class="status-label">AVOIDANCE RISK</span><span class="status-val" id="avoid-risk">LOW</span></div>
+  <div class="status-item"><span class="status-dot" id="streak-dot" style="background:var(--green)"></span><span class="status-label">STREAK</span><span class="status-val" id="streak-status">0 DAYS</span></div>
+  <div style="margin-left:auto;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">ELVEANCE MARTIN · SECTOR UNKNOWN</div>
+</div>
+
+<div class="main-layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Navigation</div>
+      <div class="nav-tabs">
+        <div class="nav-tab active" onclick="showPanel('day')" id="tab-day"><span class="tab-dot tab-day"></span>Day Overview</div>
+        <div class="nav-tab" onclick="showPanel('study')" id="tab-study"><span class="tab-dot tab-study"></span>Study</div>
+        <div class="nav-tab" onclick="showPanel('work')" id="tab-work"><span class="tab-dot tab-work"></span>Work</div>
+        <div class="nav-tab" onclick="showPanel('personal')" id="tab-personal"><span class="tab-dot tab-personal"></span>Personal</div>
+        <div class="nav-tab" onclick="showPanel('reading')" id="tab-reading"><span class="tab-dot" style="background:#cc88ff;"></span>Reading</div>
+        <div class="nav-tab" onclick="showPanel('skill')" id="tab-skill"><span class="tab-dot" style="background:#ff88aa;"></span>Skill</div>
+        <div class="nav-tab" onclick="showPanel('warden')" id="tab-warden"><span class="tab-dot" style="background:var(--red);"></span>Warden Log</div>
+        <div class="nav-tab" onclick="showPanel('config')" id="tab-config"><span class="tab-dot" style="background:var(--muted);"></span>Configure</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Today's Progress</div>
+      <div class="progress-section">
+        <div class="ring-wrap">
+          <svg width="52" height="52" viewBox="0 0 52 52">
+            <circle cx="26" cy="26" r="20" fill="none" stroke="#1e2823" stroke-width="4"/>
+            <circle cx="26" cy="26" r="20" fill="none" stroke="#00ff7f" stroke-width="4" stroke-dasharray="125.6" stroke-dashoffset="125.6" id="ring-study" stroke-linecap="round" transform="rotate(-90 26 26)"/>
+          </svg>
+          <span class="ring-label">STUDY</span>
+          <span class="ring-val" style="color:var(--study)" id="ring-study-pct">0%</span>
+        </div>
+        <div class="ring-wrap">
+          <svg width="52" height="52" viewBox="0 0 52 52">
+            <circle cx="26" cy="26" r="20" fill="none" stroke="#1e2823" stroke-width="4"/>
+            <circle cx="26" cy="26" r="20" fill="none" stroke="#ffaa00" stroke-width="4" stroke-dasharray="125.6" stroke-dashoffset="125.6" id="ring-work" stroke-linecap="round" transform="rotate(-90 26 26)"/>
+          </svg>
+          <span class="ring-label">WORK</span>
+          <span class="ring-val" style="color:var(--work)" id="ring-work-pct">0%</span>
+        </div>
+        <div class="ring-wrap">
+          <svg width="52" height="52" viewBox="0 0 52 52">
+            <circle cx="26" cy="26" r="20" fill="none" stroke="#1e2823" stroke-width="4"/>
+            <circle cx="26" cy="26" r="20" fill="none" stroke="#00aaff" stroke-width="4" stroke-dasharray="125.6" stroke-dashoffset="125.6" id="ring-personal" stroke-linecap="round" transform="rotate(-90 26 26)"/>
+          </svg>
+          <span class="ring-label">PERSONAL</span>
+          <span class="ring-val" style="color:var(--personal)" id="ring-personal-pct">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Streak</div>
+      <div class="streak-display">
+        <span class="streak-num" id="streak-num">0</span>
+        <span class="streak-unit">DAYS CLEAN</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;font-family:'Space Mono',monospace;">No full avoidance days</div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Avoidance Risk Meter</div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;font-family:'Space Mono',monospace;color:var(--muted);margin-bottom:4px;">
+        <span>CLEAN</span><span>CRITICAL</span>
+      </div>
+      <div class="avoidance-bar"><div class="avoidance-fill" id="avoid-fill" style="width:5%"></div></div>
+      <div style="margin-top:8px;font-size:10px;font-family:'Space Mono',monospace;color:var(--muted);" id="avoid-label">No avoidance triggers detected</div>
+    </div>
+
+    <div class="sidebar-section" style="flex:1;">
+      <div class="sidebar-label">Quick Actions</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <button class="btn btn-green" style="width:100%;font-size:10px;" onclick="startBlock()">▶ START 50-MIN BLOCK</button>
+        <button class="btn btn-blue" style="width:100%;font-size:10px;" onclick="startBreak()">◻ START 10-MIN BREAK</button>
+        <button class="btn btn-amber" style="width:100%;font-size:10px;" onclick="showPanel('config')">⚙ ADD / EDIT TASKS</button>
+        <button class="btn btn-red" style="width:100%;font-size:10px;" onclick="triggerEmergency()">⚠ AVOIDANCE OVERRIDE</button>
+        <button class="btn" id="btn-reminder" style="width:100%;font-size:10px;border-color:var(--green);color:var(--green);" onclick="toggleReminder()">🔔 REMINDER: OFF</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN PANELS -->
+  <div style="overflow-y:auto;">
+
+    <!-- DAY PANEL -->
+    <div class="panel active" id="panel-day">
+      <div class="panel-header">
+        <div class="panel-title"><span class="accent-day">◈</span> Day Overview</div>
+      </div>
+
+      <!-- PHASE STRIP -->
+      <div class="phase-row" id="phase-row">
+        <div class="phase" id="ph-morning">MORNING<br/>6:30–9:00</div>
+        <div class="phase" id="ph-study1">STUDY 1<br/>9–11:30</div>
+        <div class="phase" id="ph-tuition">SESSION<br/>WINDOW</div>
+        <div class="phase" id="ph-nap">RECOVERY<br/>NAP</div>
+        <div class="phase" id="ph-study2">STUDY 2<br/>AFTERNOON</div>
+        <div class="phase" id="ph-work">WORK<br/>BLOCK</div>
+        <div class="phase" id="ph-review">REVIEW<br/>23:00+</div>
+      </div>
+
+      <!-- ACTIVE TIMER -->
+      <div class="timer-card">
+        <div class="timer-label" id="timer-mode-label">WARDEN READY — START A BLOCK</div>
+        <div class="timer-display" id="timer-display">50:00</div>
+        <div class="block-tracker" id="block-tracker">
+          <div class="block-dot" id="bd-1">1</div>
+          <div class="block-dot" id="bd-2">2</div>
+          <div class="block-dot" id="bd-3">3</div>
+          <div class="block-dot" id="bd-4">4</div>
+          <span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);align-self:center;"> = 4 BLOCKS TARGET</span>
+        </div>
+        <div class="timer-controls">
+          <button class="btn btn-green" id="btn-start-block" onclick="startBlock()">▶ START BLOCK</button>
+          <button class="btn btn-blue" id="btn-start-break" onclick="startBreak()" disabled>◻ BREAK</button>
+          <button class="btn btn-amber" id="btn-pause" onclick="pauseTimer()" disabled>⏸ PAUSE</button>
+          <button class="btn btn-red" id="btn-reset" onclick="resetTimer()">↺ RESET</button>
+        </div>
+      </div>
+
+      <!-- TODAY SCHEDULE -->
+      <div style="margin-bottom:14px;">
+        <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">TODAY'S SCHEDULE</div>
+        <div id="schedule-container">
+          <div id="schedule-slots"></div>
+        </div>
+      </div>
+
+      <!-- CURRENT ALARM STATUS -->
+      <div id="day-alerts"></div>
+
+      <!-- AVOIDANCE TRIGGERS -->
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;margin-top:16px;">AVOIDANCE OVERRIDE PROTOCOL</div>
+      <div>
+        <div class="trigger-item"><span class="trigger-icon">📱</span><span class="trigger-text">Phone is in reach / urge to check</span><button class="trigger-override" onclick="overrideTrigger('phone')">OVERRIDE</button></div>
+        <div class="trigger-item"><span class="trigger-icon">🧹</span><span class="trigger-text">Urge to clean / rearrange desk</span><button class="trigger-override" onclick="overrideTrigger('clean')">OVERRIDE</button></div>
+        <div class="trigger-item"><span class="trigger-icon">📖</span><span class="trigger-text">Passive re-reading instead of output</span><button class="trigger-override" onclick="overrideTrigger('read')">OVERRIDE</button></div>
+        <div class="trigger-item"><span class="trigger-icon">🔁</span><span class="trigger-text">Planning again instead of executing</span><button class="trigger-override" onclick="overrideTrigger('plan')">OVERRIDE</button></div>
+        <div class="trigger-item"><span class="trigger-icon">😴</span><span class="trigger-text">"I'll start after a quick rest"</span><button class="trigger-override" onclick="overrideTrigger('rest')">OVERRIDE</button></div>
+      </div>
+    </div>
+
+    <!-- STUDY PANEL -->
+    <div class="panel" id="panel-study">
+      <div class="panel-header">
+        <div class="panel-title"><span class="accent-study">◈</span> Study Section</div>
+      </div>
+      <div class="alert alert-green"><strong>STUDY PROTOCOL</strong>Phone to another room → Open material → Write today's date → 50 min active output → 10 min walk/water (NO PHONE) → Repeat. Max 2 re-reads per section then move on.</div>
+
+      <div class="sep"></div>
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">STUDY TASKS — TODAY</div>
+      <div id="study-tasks-list"></div>
+      <button class="btn btn-green" style="margin-top:8px;" onclick="showAddTask('study')">+ ADD STUDY TASK</button>
+
+      <div class="sep"></div>
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">SUBJECT QUICK-START</div>
+      <div class="grid-2">
+        <div class="stat-card"><div class="stat-num" style="color:var(--study);" id="study-done-count">0</div><div class="stat-unit">TASKS DONE TODAY</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:var(--muted);" id="study-remain-count">0</div><div class="stat-unit">REMAINING</div></div>
+      </div>
+
+      <div class="sep"></div>
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">RE-ENTRY RULE</div>
+      <div class="alert alert-amber"><strong>AFTER EVERY BREAK</strong>Sit down. Write one word — any word. Do not negotiate. Do not check anything. The word is the re-entry trigger. Partial completion beats perfect non-completion every single time.</div>
+    </div>
+
+    <!-- WORK PANEL -->
+    <div class="panel" id="panel-work">
+      <div class="panel-header">
+        <div class="panel-title"><span class="accent-work">◈</span> Work Section</div>
+      </div>
+      <div class="alert alert-amber"><strong>WORK / SESSION PROTOCOL</strong>Sessions are income-generating. They take priority over optional planning. Log hours. Keep sessions prepared the night before — 5 min prep saves 20 min stalling.</div>
+
+      <div class="sep"></div>
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">WORK & SESSION TASKS</div>
+      <div id="work-tasks-list"></div>
+      <button class="btn btn-amber" style="margin-top:8px;" onclick="showAddTask('work')">+ ADD WORK TASK</button>
+
+      <div class="sep"></div>
+      <div class="grid-2">
+        <div class="stat-card"><div class="stat-num" style="color:var(--work);" id="work-done-count">0</div><div class="stat-unit">TASKS DONE</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:var(--work);" id="session-hours">0</div><div class="stat-unit">SESSION HRS TODAY</div></div>
+      </div>
+
+      <div class="sep"></div>
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">SESSION LOG</div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Duration (hrs)</label><input class="form-input" type="number" id="session-input" placeholder="1.5" step="0.5" min="0" max="6"></div>
+        <div class="form-group" style="justify-content:flex-end;"><button class="btn btn-amber" onclick="logSession()" style="margin-top:18px;">LOG SESSION</button></div>
+      </div>
+    </div>
+
+    <!-- PERSONAL PANEL -->
+    <div class="panel" id="panel-personal">
+      <div class="panel-header">
+        <div class="panel-title"><span class="accent-personal">◈</span> Personal Section</div>
+      </div>
+      <div class="alert alert-blue"><strong>PERSONAL / LIFE PROTOCOL</strong>Morning routine, meals, prayer, sleep hygiene. These are non-negotiable anchors. Skipping them degrades cognitive function, which breaks the study system. They are not optional.</div>
+
+      <div class="sep"></div>
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">PERSONAL TASKS</div>
+      <div id="personal-tasks-list"></div>
+      <button class="btn btn-blue" style="margin-top:8px;" onclick="showAddTask('personal')">+ ADD PERSONAL TASK</button>
+
+      <div class="sep"></div>
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">DAILY ANCHORS</div>
+      <div id="anchor-list">
+        <div class="task-block" id="anchor-wake">
+          <div class="task-header">
+            <input type="checkbox" class="task-checkbox" onchange="checkAnchor('wake',this)">
+            <span class="task-name">Wake at 6:30 AM — no snooze</span>
+            <span class="task-type personal">ANCHOR</span>
+          </div>
+        </div>
+        <div class="task-block" id="anchor-morning">
+          <div class="task-header">
+            <input type="checkbox" class="task-checkbox" onchange="checkAnchor('morning',this)">
+            <span class="task-name">Morning routine complete (wash, pray, eat)</span>
+            <span class="task-type personal">ANCHOR</span>
+          </div>
+        </div>
+        <div class="task-block" id="anchor-nap">
+          <div class="task-header">
+            <input type="checkbox" class="task-checkbox" onchange="checkAnchor('nap',this)">
+            <span class="task-name">Recovery nap / rest (2:00–3:00 PM)</span>
+            <span class="task-type personal">RECOVERY</span>
+          </div>
+        </div>
+        <div class="task-block" id="anchor-sleep">
+          <div class="task-header">
+            <input type="checkbox" class="task-checkbox" onchange="checkAnchor('sleep',this)">
+            <span class="task-name">In bed by 1:00 AM — no negotiation</span>
+            <span class="task-type personal">ANCHOR</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WARDEN LOG PANEL -->
+    <div class="panel" id="panel-warden">
+      <div class="panel-header">
+        <div class="panel-title"><span style="color:var(--red);">◈</span> Warden Log</div>
+      </div>
+      <div class="alert alert-red"><strong>SURVEILLANCE RECORD</strong>Every override, avoidance trigger, missed block, and intervention is logged here. This is your behavioral audit trail. Patterns here reveal your real avoidance cycles — not what you think they are.</div>
+
+      <div class="sep"></div>
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">LIVE LOG</div>
+      <div class="warden-log" id="warden-log-container">
+        <div class="log-entry"><span class="log-time">SYSTEM </span> WARDEN initialized — surveillance active</div>
+      </div>
+
+      <div class="sep"></div>
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">TODAY'S AUDIT</div>
+      <div class="grid-3">
+        <div class="stat-card"><div class="stat-num" style="color:var(--red);" id="audit-triggers">0</div><div class="stat-unit">TRIGGERS FIRED</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:var(--amber);" id="audit-overrides">0</div><div class="stat-unit">OVERRIDES USED</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:var(--green);" id="audit-blocks">0</div><div class="stat-unit">BLOCKS COMPLETED</div></div>
+      </div>
+
+      <div class="sep"></div>
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">NIGHT REVIEW — FILL BEFORE SLEEP</div>
+      <div class="form-group" style="margin-bottom:10px;"><label class="form-label">What I planned vs what I did (honest)</label><textarea class="form-input" id="review-text" rows="4" placeholder="Planned: 4 study blocks, work session at 4pm, sleep by 1am&#10;Did: 2 blocks, missed work prep, slept at 2am..."></textarea></div>
+      <div class="form-group" style="margin-bottom:10px;"><label class="form-label">Main avoidance pattern today</label><input class="form-input" id="review-pattern" placeholder="e.g. Phone during breaks, then lost 2 hours"></div>
+      <div class="form-group" style="margin-bottom:10px;"><label class="form-label">One rule for tomorrow</label><input class="form-input" id="review-rule" placeholder="e.g. Phone in bag before I sit down — not after"></div>
+      <button class="btn btn-green" onclick="saveReview()">SAVE NIGHT REVIEW</button>
+    </div>
+
+    <!-- READING PANEL -->
+    <div class="panel" id="panel-reading">
+      <div class="panel-header">
+        <div class="panel-title"><span style="color:#cc88ff;">◈</span> Reading Tracker</div>
+      </div>
+      <div class="alert" style="border-color:#cc88ff;background:rgba(204,136,255,0.06);color:#ddb8ff;margin-bottom:16px;"><strong style="color:#cc88ff;">READING PROTOCOL</strong>30–60 min per day. No phone. Physical book open before you sit. Log pages immediately after — not later. Consistency over speed. One book at a time until finished.</div>
+
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">CURRENT BOOK</div>
+      <div id="reading-current-display" style="background:var(--surface);border:1px solid var(--border);padding:16px;margin-bottom:14px;">
+        <div style="font-size:13px;color:var(--muted);font-family:'Space Mono',monospace;">No book set. Add one below.</div>
+      </div>
+
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">LOG TODAY'S SESSION</div>
+      <div style="background:var(--surface);border:1px solid var(--border);padding:16px;margin-bottom:14px;">
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Pages Read Today</label><input class="form-input" type="number" id="reading-pages-today" placeholder="12" min="1"></div>
+          <div class="form-group"><label class="form-label">Time Spent (min)</label><input class="form-input" type="number" id="reading-time-today" placeholder="45" min="1" max="120"></div>
+          <div class="form-group" style="justify-content:flex-end;"><button class="btn" style="margin-top:18px;border-color:#cc88ff;color:#cc88ff;" onclick="logReadingSession()">LOG SESSION</button></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="flex:2;"><label class="form-label">Quick Note (optional)</label><input class="form-input" id="reading-note" placeholder="Key idea or thought from today's reading"></div>
+        </div>
+      </div>
+
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">READING STREAK & STATS</div>
+      <div class="grid-3" style="margin-bottom:14px;">
+        <div class="stat-card"><div class="stat-num" style="color:#cc88ff;" id="read-streak">0</div><div class="stat-unit">DAY STREAK</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:#cc88ff;" id="read-total-pages">0</div><div class="stat-unit">TOTAL PAGES</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:#cc88ff;" id="read-total-mins">0</div><div class="stat-unit">TOTAL MINS</div></div>
+      </div>
+
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">SET / CHANGE BOOK</div>
+      <div style="background:var(--surface);border:1px solid var(--border);padding:16px;margin-bottom:14px;">
+        <div class="form-row">
+          <div class="form-group" style="flex:2;"><label class="form-label">Book Title</label><input class="form-input" id="book-title" placeholder="e.g. Atomic Habits"></div>
+          <div class="form-group"><label class="form-label">Author</label><input class="form-input" id="book-author" placeholder="James Clear"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Total Pages</label><input class="form-input" type="number" id="book-total-pages" placeholder="320" min="1"></div>
+          <div class="form-group"><label class="form-label">Current Page</label><input class="form-input" type="number" id="book-current-page" placeholder="0" min="0"></div>
+          <div class="form-group" style="justify-content:flex-end;"><button class="btn" style="margin-top:18px;border-color:#cc88ff;color:#cc88ff;" onclick="setBook()">SET BOOK</button></div>
+        </div>
+      </div>
+
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">SESSION HISTORY</div>
+      <div id="reading-history" style="max-height:220px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);padding:12px;">
+        <div style="font-size:11px;color:var(--muted);font-family:'Space Mono',monospace;">No sessions logged yet.</div>
+      </div>
+    </div>
+
+    <!-- SKILL PANEL -->
+    <div class="panel" id="panel-skill">
+      <div class="panel-header">
+        <div class="panel-title"><span style="color:#ff88aa;">◈</span> Skill Tracker</div>
+      </div>
+      <div class="alert" style="border-color:#ff88aa;background:rgba(255,136,170,0.06);color:#ffbbcc;margin-bottom:16px;"><strong style="color:#ff88aa;">SKILL PROTOCOL</strong>One skill at a time. No switching until the current one is complete or deliberately paused. Log every session. Time on task is the only metric that matters — not how much you planned to do.</div>
+
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">ACTIVE SKILL</div>
+      <div id="skill-current-display" style="background:var(--surface);border:1px solid var(--border);padding:16px;margin-bottom:14px;">
+        <div style="font-size:13px;color:var(--muted);font-family:'Space Mono',monospace;">No skill set. Add one below.</div>
+      </div>
+
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">LOG SESSION</div>
+      <div style="background:var(--surface);border:1px solid var(--border);padding:16px;margin-bottom:14px;">
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Time Spent (min)</label><input class="form-input" type="number" id="skill-time-today" placeholder="50" min="1"></div>
+          <div class="form-group"><label class="form-label">Milestone / Unit Done</label><input class="form-input" id="skill-milestone" placeholder="e.g. Lesson 3, Module 2..."></div>
+          <div class="form-group" style="justify-content:flex-end;"><button class="btn" style="margin-top:18px;border-color:#ff88aa;color:#ff88aa;" onclick="logSkillSession()">LOG SESSION</button></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="flex:2;"><label class="form-label">Notes</label><input class="form-input" id="skill-note" placeholder="What did you actually learn or produce today?"></div>
+        </div>
+      </div>
+
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">PROGRESS</div>
+      <div class="grid-3" style="margin-bottom:14px;">
+        <div class="stat-card"><div class="stat-num" style="color:#ff88aa;" id="skill-total-hrs">0.0</div><div class="stat-unit">TOTAL HOURS</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:#ff88aa;" id="skill-sessions">0</div><div class="stat-unit">SESSIONS</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:#ff88aa;" id="skill-streak">0</div><div class="stat-unit">DAY STREAK</div></div>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);padding:12px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;font-family:'Space Mono',monospace;color:var(--muted);margin-bottom:6px;">
+          <span>PROGRESS TO GOAL</span><span id="skill-goal-pct">0%</span>
+        </div>
+        <div style="height:8px;background:var(--border2);border-radius:4px;overflow:hidden;">
+          <div id="skill-goal-bar" style="height:100%;background:#ff88aa;border-radius:4px;width:0%;transition:width 0.4s;"></div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;margin-top:6px;" id="skill-goal-label">Set a goal target to track progress</div>
+      </div>
+
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">SET / CHANGE SKILL</div>
+      <div style="background:var(--surface);border:1px solid var(--border);padding:16px;margin-bottom:14px;">
+        <div class="form-row">
+          <div class="form-group" style="flex:2;"><label class="form-label">Skill Name</label><input class="form-input" id="skill-name-input" placeholder="e.g. Python, Video Editing, Canva Animation"></div>
+          <div class="form-group"><label class="form-label">Goal (hours)</label><input class="form-input" type="number" id="skill-goal-hrs" placeholder="100" min="1"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="flex:2;"><label class="form-label">Description / Why</label><input class="form-input" id="skill-desc" placeholder="What does mastery look like for this skill?"></div>
+          <div class="form-group" style="justify-content:flex-end;"><button class="btn" style="margin-top:18px;border-color:#ff88aa;color:#ff88aa;" onclick="setSkill()">SET SKILL</button></div>
+        </div>
+      </div>
+
+      <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">SESSION HISTORY</div>
+      <div id="skill-history" style="max-height:220px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);padding:12px;">
+        <div style="font-size:11px;color:var(--muted);font-family:'Space Mono',monospace;">No sessions logged yet.</div>
+      </div>
+    </div>
+
+    <!-- CONFIG PANEL -->
+    <div class="panel" id="panel-config">
+      <div class="panel-header">
+        <div class="panel-title"><span style="color:var(--muted);">◈</span> Configure Warden</div>
+      </div>
+
+      <div class="config-section">
+        <div class="config-title">⚙ Add New Task</div>
+        <div class="form-row">
+          <div class="form-group" style="flex:2;"><label class="form-label">Task Name</label><input class="form-input" id="new-task-name" placeholder="e.g. Chapter review — 50 min active output"></div>
+          <div class="form-group"><label class="form-label">Section</label>
+            <select class="form-select" id="new-task-section">
+              <option value="study">Study</option>
+              <option value="work">Work</option>
+              <option value="personal">Personal</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Priority</label>
+            <select class="form-select" id="new-task-priority">
+              <option value="must">MUST DO</option>
+              <option value="should">SHOULD DO</option>
+              <option value="bonus">BONUS</option>
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label">Duration (min)</label><input class="form-input" type="number" id="new-task-dur" placeholder="50" value="50" min="5" max="180"></div>
+          <div class="form-group"><label class="form-label">Scheduled Time</label><input class="form-input" type="time" id="new-task-time" value="09:00"></div>
+        </div>
+        <button class="btn btn-green" onclick="addTask()">+ ADD TASK</button>
+      </div>
+
+      <div class="config-section">
+        <div class="config-title">⏰ Schedule Settings</div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Wake Time</label><input class="form-input" type="time" id="cfg-wake" value="06:30"></div>
+          <div class="form-group"><label class="form-label">Sleep Time</label><input class="form-input" type="time" id="cfg-sleep" value="01:00"></div>
+          <div class="form-group"><label class="form-label">Nap Start</label><input class="form-input" type="time" id="cfg-nap" value="14:00"></div>
+          <div class="form-group"><label class="form-label">Nap Duration (min)</label><input class="form-input" type="number" id="cfg-nap-dur" value="30" min="10" max="60"></div>
+        </div>
+        <button class="btn btn-green" onclick="saveConfig()">SAVE SETTINGS</button>
+      </div>
+
+      <div class="config-section">
+        <div class="config-title">🔔 Reminder Alarm</div>
+        <div style="font-size:12px;color:var(--muted);font-family:'Space Mono',monospace;margin-bottom:10px;line-height:1.7;">Plays an audio beep + shows a full-screen alert at regular intervals reminding you to get back to study or work. Works only while this tab is open.</div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Interval (minutes)</label><input class="form-input" type="number" id="cfg-reminder-interval" value="30" min="5" max="120" step="5"></div>
+          <div class="form-group" style="justify-content:flex-end;"><button class="btn btn-green" onclick="saveReminderConfig()" style="margin-top:18px;">SAVE</button></div>
+          <div class="form-group" style="justify-content:flex-end;"><button class="btn" id="btn-reminder-config" style="margin-top:18px;border-color:var(--green);color:var(--green);" onclick="toggleReminder()">ENABLE</button></div>
+        </div>
+      </div>
+
+      <div class="config-section">
+        <div class="config-title">🎯 Warden Intensity</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Intervention Mode</label>
+            <select class="form-select" id="cfg-intensity">
+              <option value="normal">Normal — alerts only</option>
+              <option value="strict" selected>Strict — overlay on idle</option>
+              <option value="brutal">Brutal — frequent interrupts</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Idle Timeout (min)</label>
+            <input class="form-input" type="number" id="cfg-idle" value="20" min="5" max="60">
+          </div>
+        </div>
+        <button class="btn btn-green" onclick="saveConfig()">SAVE</button>
+      </div>
+
+      <div class="config-section">
+        <div class="config-title">🔄 Data Controls</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-amber" onclick="exportData()">EXPORT TODAY'S LOG</button>
+          <button class="btn btn-muted" onclick="loadDefaults()">LOAD DEFAULT SCHEDULE</button>
+          <button class="btn btn-red" onclick="clearDay()">CLEAR ALL TASKS</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let state = {
+  tasks: [],
+  streak: parseInt(localStorage.getItem('warden-streak')||'0'),
+  timerVal: 50*60,
+  timerRunning: false,
+  timerMode: 'idle',
+  timerInterval: null,
+  blocksCompleted: parseInt(localStorage.getItem('warden-blocks-today')||'0'),
+  lastActivity: Date.now(),
+  avoidanceTriggers: 0,
+  overridesUsed: 0,
+  wardenLog: [],
+  anchors: {},
+  sessionHours: 0,
+  reading: {book: null, sessions: [], totalPages: 0, totalMins: 0, streak: 0},
+  skill: {active: null, sessions: [], totalMins: 0, streak: 0},
+  config: {
+    wake: '06:30', sleep: '01:00', nap: '14:00', napDur: 30,
+    intensity: 'strict', idleTimeout: 20
+  }
+};
+
+// ─── PERSISTENCE ─────────────────────────────────────────────────────────────
+function save() {
+  try {
+    const d = {tasks: state.tasks, streak: state.streak, blocksCompleted: state.blocksCompleted,
+      avoidanceTriggers: state.avoidanceTriggers, overridesUsed: state.overridesUsed,
+      wardenLog: state.wardenLog.slice(-100), anchors: state.anchors,
+      sessionHours: state.sessionHours, config: state.config,
+      reading: state.reading, skill: state.skill,
+      saveDate: new Date().toDateString()};
+    localStorage.setItem('warden-data', JSON.stringify(d));
+  } catch(e){}
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem('warden-data');
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (d.saveDate !== new Date().toDateString()) {
+      state.streak = d.streak;
+      state.blocksCompleted = 0;
+      state.avoidanceTriggers = 0;
+      state.overridesUsed = 0;
+      state.wardenLog = [];
+      // Preserve reading and skill across days
+      if(d.reading) state.reading = d.reading;
+      if(d.skill) state.skill = d.skill;
+      return;
+    }
+    state.tasks = d.tasks || [];
+    state.streak = d.streak || 0;
+    state.blocksCompleted = d.blocksCompleted || 0;
+    state.avoidanceTriggers = d.avoidanceTriggers || 0;
+    state.overridesUsed = d.overridesUsed || 0;
+    state.wardenLog = d.wardenLog || [];
+    state.anchors = d.anchors || {};
+    state.sessionHours = d.sessionHours || 0;
+    state.config = {...state.config, ...(d.config||{})};
+    if(d.reading) state.reading = d.reading;
+    if(d.skill) state.skill = d.skill;
+  } catch(e){}
+}
+
+// ─── CLOCK ────────────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  const s = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('clock').textContent = h+':'+m+':'+s;
+  document.getElementById('date-display').textContent =
+    now.toLocaleDateString('en-GB',{weekday:'long',year:'numeric',month:'long',day:'numeric'}).toUpperCase();
+  updatePhase(now);
+  checkIdleWarning(now);
+  updateScheduleHighlight(now);
+}
+
+// ─── PHASES ──────────────────────────────────────────────────────────────────
+function updatePhase(now) {
+  const h = now.getHours(), m = now.getMinutes();
+  const t = h*60+m;
+  const phases = [
+    {id:'ph-morning', start:6*60+30, end:9*60, label:'MORNING ROUTINE'},
+    {id:'ph-study1', start:9*60, end:11*60+30, label:'STUDY BLOCK 1'},
+    {id:'ph-tuition', start:11*60+30, end:14*60, label:'SESSION / WORK'},
+    {id:'ph-nap', start:14*60, end:15*60, label:'RECOVERY NAP'},
+    {id:'ph-study2', start:15*60, end:20*60, label:'STUDY BLOCK 2'},
+    {id:'ph-work', start:20*60, end:23*60, label:'WORK / TASKS'},
+    {id:'ph-review', start:23*60, end:25*60, label:'REVIEW + PLAN'},
+  ];
+  let currentLabel = 'MONITORING';
+  phases.forEach(p=>{
+    const el = document.getElementById(p.id);
+    if(!el) return;
+    el.classList.remove('current','past');
+    if(t >= p.start && t < p.end){el.classList.add('current');currentLabel=p.label;}
+    else if(t >= p.end){el.classList.add('past');}
+  });
+  document.getElementById('current-phase-status').textContent = currentLabel;
+}
+
+// ─── SCHEDULE ────────────────────────────────────────────────────────────────
+const DEFAULT_SCHEDULE = [
+  {time:'06:30', label:'Wake up — no snooze. Water first.', type:'personal'},
+  {time:'06:35', label:'Morning routine: wash, pray, breakfast', type:'personal'},
+  {time:'07:15', label:'Study prep: phone to other room, desk ready', type:'study'},
+  {time:'07:30', label:'STUDY BLOCK 1 — 50 min active output', type:'study'},
+  {time:'08:20', label:'Break 10 min — walk/water, NO phone', type:'system'},
+  {time:'08:30', label:'STUDY BLOCK 2 — 50 min', type:'study'},
+  {time:'09:20', label:'Break 10 min', type:'system'},
+  {time:'09:30', label:'STUDY BLOCK 3 — 50 min', type:'study'},
+  {time:'10:20', label:'Break 10 min', type:'system'},
+  {time:'10:30', label:'STUDY BLOCK 4 — 50 min', type:'study'},
+  {time:'11:20', label:'Meal + rest — earned', type:'personal'},
+  {time:'12:00', label:'Session / Work window', type:'work'},
+  {time:'14:00', label:'RECOVERY NAP — 20–30 min max', type:'nap'},
+  {time:'14:30', label:'Re-entry: sit, write one word', type:'study'},
+  {time:'15:00', label:'Afternoon study / tasks', type:'study'},
+  {time:'17:00', label:'Second session window or work tasks', type:'work'},
+  {time:'19:00', label:'Dinner + short walk', type:'personal'},
+  {time:'20:00', label:'Evening deep work / study', type:'study'},
+  {time:'22:00', label:'Light tasks / review notes', type:'work'},
+  {time:'23:00', label:'NIGHT REVIEW — 15 min', type:'system'},
+  {time:'23:15', label:'NEXT DAY PLAN — Gemini P-01 prompt', type:'system'},
+  {time:'01:00', label:'SLEEP — non-negotiable', type:'personal'},
+];
+
+function renderSchedule() {
+  const container = document.getElementById('schedule-slots');
+  const now = new Date();
+  const t = now.getHours()*60+now.getMinutes();
+  let html = '';
+  DEFAULT_SCHEDULE.forEach(slot=>{
+    const [h,m] = slot.time.split(':').map(Number);
+    const slotT = h*60+m;
+    const past = slotT < t;
+    html += `<div class="schedule-slot" style="${past?'opacity:0.4':''}">
+      <div class="slot-time">${slot.time}</div>
+      <div class="slot-content"><div class="slot-block slot-${slot.type}">${slot.label}</div></div>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function updateScheduleHighlight(now) {
+  // Rerender every minute
+  if(now.getSeconds() === 0) renderSchedule();
+}
+
+// ─── TIMER ────────────────────────────────────────────────────────────────────
+function startBlock() {
+  if(state.timerRunning && state.timerMode === 'block') return;
+  clearInterval(state.timerInterval);
+  state.timerMode = 'block';
+  state.timerVal = 50*60;
+  state.timerRunning = true;
+  state.lastActivity = Date.now();
+  updateTimerDisplay();
+  setBlockButtons(true, false);
+  document.getElementById('timer-mode-label').textContent = '50-MIN DEEP WORK BLOCK — PHONE OUT OF ROOM';
+  const bd = document.getElementById('bd-'+(state.blocksCompleted+1));
+  if(bd) bd.classList.add('active');
+  addLog('BLOCK', `Block ${state.blocksCompleted+1} started`);
+  state.timerInterval = setInterval(tickTimer, 1000);
+}
+
+function startBreak() {
+  clearInterval(state.timerInterval);
+  state.timerMode = 'break';
+  state.timerVal = 10*60;
+  state.timerRunning = true;
+  state.lastActivity = Date.now();
+  updateTimerDisplay();
+  setBlockButtons(false, true);
+  document.getElementById('timer-mode-label').textContent = '10-MIN BREAK — WALK / WATER / EYES CLOSED — NO PHONE';
+  addLog('BREAK', '10-min break started');
+  state.timerInterval = setInterval(tickTimer, 1000);
+}
+
+function tickTimer() {
+  if(state.timerVal <= 0) {
+    clearInterval(state.timerInterval);
+    state.timerRunning = false;
+    if(state.timerMode === 'block') {
+      state.blocksCompleted++;
+      const bd = document.getElementById('bd-'+state.blocksCompleted);
+      if(bd){bd.classList.remove('active');bd.classList.add('done');}
+      document.getElementById('blocks-done-status').textContent = state.blocksCompleted+' / 4';
+      document.getElementById('audit-blocks').textContent = state.blocksCompleted;
+      document.getElementById('timer-mode-label').textContent = 'BLOCK COMPLETE — START YOUR BREAK NOW';
+      document.getElementById('timer-display').textContent = 'DONE';
+      document.getElementById('timer-display').classList.remove('warning');
+      setBlockButtons(false, false);
+      document.getElementById('btn-start-break').disabled = false;
+      addLog('DONE', `Block ${state.blocksCompleted} completed`);
+      showNotif('Block complete. Start break NOW.','green');
+      if(state.blocksCompleted >= 4) {
+        addLog('WIN', '4 blocks completed — daily target reached');
+        showNotif('4 blocks done. TARGET MET.','green');
+        state.streak++;
+        document.getElementById('streak-num').textContent = state.streak;
+        document.getElementById('streak-status').textContent = state.streak+' DAYS';
+      }
+    } else if(state.timerMode === 'break') {
+      document.getElementById('timer-mode-label').textContent = 'BREAK OVER — RE-ENTER NOW. WRITE ONE WORD.';
+      document.getElementById('timer-display').textContent = 'GO';
+      setBlockButtons(false, false);
+      document.getElementById('btn-start-block').disabled = false;
+      addLog('REENTRY', 'Break over — re-entry required');
+      showNotif('Break over. Sit. Write one word. Now.','warn');
+    }
+    save();
+    return;
+  }
+  state.timerVal--;
+  if(state.timerMode === 'block' && state.timerVal <= 5*60)
+    document.getElementById('timer-display').classList.add('warning');
+  else if(state.timerMode === 'break')
+    document.getElementById('timer-display').classList.add('break-mode');
+  updateTimerDisplay();
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(state.timerVal/60);
+  const s = state.timerVal%60;
+  document.getElementById('timer-display').textContent = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+
+function pauseTimer() {
+  if(!state.timerRunning) return;
+  clearInterval(state.timerInterval);
+  state.timerRunning = false;
+  addLog('WARN', 'Timer paused — return immediately');
+  showNotif('Timer paused. This is a warning.','warn');
+  document.getElementById('btn-pause').textContent = '▶ RESUME';
+  document.getElementById('btn-pause').onclick = resumeTimer;
+}
+
+function resumeTimer() {
+  state.timerRunning = true;
+  state.lastActivity = Date.now();
+  state.timerInterval = setInterval(tickTimer, 1000);
+  document.getElementById('btn-pause').textContent = '⏸ PAUSE';
+  document.getElementById('btn-pause').onclick = pauseTimer;
+}
+
+function resetTimer() {
+  clearInterval(state.timerInterval);
+  state.timerRunning = false;
+  state.timerMode = 'idle';
+  state.timerVal = 50*60;
+  document.getElementById('timer-display').textContent = '50:00';
+  document.getElementById('timer-display').className = 'timer-display';
+  document.getElementById('timer-mode-label').textContent = 'WARDEN READY — START A BLOCK';
+  setBlockButtons(false, false);
+  document.getElementById('btn-start-block').disabled = false;
+}
+
+function setBlockButtons(blockRunning, breakRunning) {
+  document.getElementById('btn-start-block').disabled = blockRunning || breakRunning;
+  document.getElementById('btn-start-break').disabled = !blockRunning || breakRunning;
+  document.getElementById('btn-pause').disabled = !blockRunning && !breakRunning;
+}
+
+// ─── TASKS ────────────────────────────────────────────────────────────────────
+function addTask() {
+  const name = document.getElementById('new-task-name').value.trim();
+  if(!name){showNotif('Task name is required','warn');return;}
+  const task = {
+    id: Date.now(), name,
+    section: document.getElementById('new-task-section').value,
+    priority: document.getElementById('new-task-priority').value,
+    duration: parseInt(document.getElementById('new-task-dur').value)||50,
+    time: document.getElementById('new-task-time').value,
+    done: false
+  };
+  state.tasks.push(task);
+  document.getElementById('new-task-name').value = '';
+  renderAllTasks(); save();
+  addLog('TASK', `Added: ${name}`);
+  showNotif('Task added.','green');
+  showPanel(task.section);
+}
+
+function showAddTask(section) {
+  document.getElementById('new-task-section').value = section;
+  showPanel('config');
+  document.getElementById('new-task-name').focus();
+}
+
+function toggleTask(id) {
+  const t = state.tasks.find(t=>t.id===id);
+  if(!t) return;
+  t.done = !t.done;
+  if(t.done) addLog('DONE', `Task completed: ${t.name}`);
+  renderAllTasks(); updateRings(); save();
+}
+
+function deleteTask(id) {
+  state.tasks = state.tasks.filter(t=>t.id!==id);
+  renderAllTasks(); updateRings(); save();
+}
+
+function renderTaskList(section) {
+  const container = document.getElementById(section+'-tasks-list');
+  if(!container) return;
+  const tasks = state.tasks.filter(t=>t.section===section);
+  if(!tasks.length){container.innerHTML='<div style="font-size:13px;color:var(--muted);padding:8px 0;font-family:Space Mono,monospace;">No tasks yet. Add from Configure panel.</div>';return;}
+  const must = tasks.filter(t=>t.priority==='must');
+  const should = tasks.filter(t=>t.priority==='should');
+  const bonus = tasks.filter(t=>t.priority==='bonus');
+  let html='';
+  function renderGroup(arr, label, color) {
+    if(!arr.length) return;
+    html += `<div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:2px;color:${color};margin:10px 0 6px;">${label}</div>`;
+    arr.forEach(t => {
+      html += `<div class="task-block${t.done?' done':''}">
+        <div class="task-header">
+          <input type="checkbox" class="task-checkbox" ${t.done?'checked':''} onchange="toggleTask(${t.id})">
+          <span class="task-name">${t.name}</span>
+          <span class="task-type ${section}">${t.priority.toUpperCase()}</span>
+        </div>
+        <div class="task-meta">
+          <span class="task-meta-item">⏱ ${t.duration}min</span>
+          <span class="task-meta-item">🕐 ${t.time}</span>
+          <button class="btn btn-red" style="padding:2px 8px;font-size:9px;margin-left:auto;" onclick="deleteTask(${t.id})">DELETE</button>
+        </div>
+      </div>`;
+    });
+  }
+  renderGroup(must,'MUST DO','var(--red)');
+  renderGroup(should,'SHOULD DO','var(--amber)');
+  renderGroup(bonus,'BONUS','var(--muted)');
+  container.innerHTML = html;
+
+  // update counts
+  const doneCount = tasks.filter(t=>t.done).length;
+  const remCount = tasks.length - doneCount;
+  const dEl = document.getElementById(section+'-done-count');
+  const rEl = document.getElementById(section+'-remain-count');
+  if(dEl) dEl.textContent = doneCount;
+  if(rEl) rEl.textContent = remCount;
+}
+
+function renderAllTasks() {
+  renderTaskList('study'); renderTaskList('work'); renderTaskList('personal');
+}
+
+// ─── RINGS ────────────────────────────────────────────────────────────────────
+function updateRings() {
+  ['study','work','personal'].forEach(s=>{
+    const tasks = state.tasks.filter(t=>t.section===s);
+    const done = tasks.filter(t=>t.done).length;
+    const pct = tasks.length ? Math.round(done/tasks.length*100) : 0;
+    const ring = document.getElementById('ring-'+s);
+    if(ring) ring.style.strokeDashoffset = 125.6*(1-pct/100);
+    const pctEl = document.getElementById('ring-'+s+'-pct');
+    if(pctEl) pctEl.textContent = pct+'%';
+  });
+}
+
+// ─── ANCHORS ─────────────────────────────────────────────────────────────────
+function checkAnchor(key, cb) {
+  state.anchors[key] = cb.checked;
+  const block = document.getElementById('anchor-'+key);
+  if(block) block.classList.toggle('done', cb.checked);
+  if(cb.checked) addLog('ANCHOR', key+' anchor completed');
+  save();
+}
+
+// ─── AVOIDANCE ───────────────────────────────────────────────────────────────
+const OVERRIDE_SCRIPTS = {
+  phone: 'PUT THE PHONE IN ANOTHER ROOM. Not face down. Not in your pocket. ANOTHER ROOM. Walk there now. Come back and start step 1.',
+  clean: 'Stop. Hands on desk. The "clean first" urge is your avoidance loop executing. The mess can wait 50 minutes. It survived before. Open your material now.',
+  read: 'Close the page. Open a blank page. Write one thing you just read in your own words. That is the output. Passive reading with zero output is high-quality procrastination.',
+  plan: 'You already have the plan. Running P-01 again is avoidance. The plan does not need to be better. It needs to be executed. Start block 1. Now.',
+  rest: '"Quick rest" extends until the motivation arrives. The motivation never arrives. The rest becomes 2 hours. Sit down. Start the 50-min timer. Rest is in the break.'
+};
+
+function overrideTrigger(type) {
+  state.avoidanceTriggers++;
+  state.overridesUsed++;
+  document.getElementById('audit-triggers').textContent = state.avoidanceTriggers;
+  document.getElementById('audit-overrides').textContent = state.overridesUsed;
+  addLog('OVERRIDE', 'Avoidance override: '+type);
+  updateAvoidanceMeter();
+  showOverlay('AVOIDANCE LOOP INTERCEPTED', OVERRIDE_SCRIPTS[type] || 'Stop. Breathe. One step. Now.', '→ Step 1: Sit down. Timer. Go.');
+  save();
+}
+
+function triggerEmergency() {
+  state.avoidanceTriggers++;
+  addLog('ALERT', 'Emergency override triggered');
+  updateAvoidanceMeter();
+  showOverlay('EMERGENCY INTERVENTION', 'You pressed the override. That means you know you are in the loop right now. Good. Now: phone in another room. Sit down. Open one task. Write the date. Start.', '→ Do not close this until you have done step 1.');
+}
+
+function updateAvoidanceMeter() {
+  const risk = Math.min(state.avoidanceTriggers * 15, 100);
+  const fill = document.getElementById('avoid-fill');
+  fill.style.width = risk+'%';
+  fill.className = 'avoidance-fill' + (risk>60?' danger':risk>35?' warning':'');
+  const label = risk>60?'CRITICAL — intervention active':risk>35?'ELEVATED — watch pattern':'Low risk';
+  document.getElementById('avoid-label').textContent = label;
+  document.getElementById('avoid-risk').textContent = risk>60?'CRITICAL':risk>35?'ELEVATED':'LOW';
+}
+
+// ─── IDLE DETECTION ──────────────────────────────────────────────────────────
+let idleCheckInterval;
+function checkIdleWarning(now) {
+  if(!state.timerRunning) {
+    const idle = (Date.now() - state.lastActivity) / 60000;
+    const timeout = state.config.idleTimeout || 20;
+    if(idle > timeout && state.config.intensity !== 'normal') {
+      const h = now.getHours();
+      if(h >= 7 && h < 23) {
+        addLog('WARN', `Idle for ${Math.round(idle)} minutes`);
+        if(state.config.intensity === 'brutal' || idle > timeout*1.5) {
+          showOverlay('IDLE DETECTED — '+Math.round(idle)+' MINUTES',
+            'No active block is running. You should be either working, in a scheduled break, or sleeping. If you are awake and not executing, the avoidance loop is running.',
+            '→ Start a block now or log what you are doing.');
+        } else {
+          showNotif(Math.round(idle)+' min idle. Start a block.','danger');
+        }
+        state.lastActivity = Date.now();
+      }
+    }
+  }
+}
+
+document.addEventListener('keydown', ()=>{ state.lastActivity = Date.now(); });
+document.addEventListener('click', ()=>{ state.lastActivity = Date.now(); });
+
+// ─── OVERLAY ─────────────────────────────────────────────────────────────────
+function showOverlay(title, body, action) {
+  document.getElementById('overlay-title').textContent = title;
+  document.getElementById('overlay-body').textContent = body;
+  document.getElementById('overlay-action').textContent = action;
+  document.getElementById('overlay').classList.add('show');
+}
+
+function dismissOverlay(action) {
+  document.getElementById('overlay').classList.remove('show');
+  if(action === 'replan') showPanel('config');
+  if(action === 'resume') { state.lastActivity = Date.now(); startBlock(); }
+}
+
+// ─── NOTIF ───────────────────────────────────────────────────────────────────
+let notifTimeout;
+function showNotif(msg, type='green') {
+  const n = document.getElementById('notif');
+  n.textContent = msg; n.className = 'notif show'+(type==='warn'?' warn':type==='danger'?' danger':'');
+  clearTimeout(notifTimeout);
+  notifTimeout = setTimeout(()=>{ n.classList.remove('show'); }, 4000);
+}
+
+// ─── LOG ─────────────────────────────────────────────────────────────────────
+function addLog(type, msg) {
+  const now = new Date();
+  const ts = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  const entry = {ts, type, msg};
+  state.wardenLog.unshift(entry);
+  const container = document.getElementById('warden-log-container');
+  const typeClass = type==='ALERT'||type==='WARN'?'log-warn':type==='OVERRIDE'?'log-alert':'log-time';
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  div.innerHTML = `<span class="${typeClass}">[${ts}][${type}]</span> ${msg}`;
+  container.insertBefore(div, container.firstChild);
+  while(container.children.length > 50) container.removeChild(container.lastChild);
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────────────────────────
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  const panel = document.getElementById('panel-'+name);
+  const tab = document.getElementById('tab-'+name);
+  if(panel) panel.classList.add('active');
+  if(tab) tab.classList.add('active');
+}
+
+// ─── SESSION ─────────────────────────────────────────────────────────────────
+function logSession() {
+  const val = parseFloat(document.getElementById('session-input').value)||0;
+  if(!val){showNotif('Enter hours first','warn');return;}
+  state.sessionHours += val;
+  document.getElementById('session-hours').textContent = state.sessionHours.toFixed(1);
+  addLog('WORK', `Session logged: ${val}hrs (total: ${state.sessionHours.toFixed(1)}hrs)`);
+  document.getElementById('session-input').value = '';
+  showNotif(`${val}hrs logged. Total: ${state.sessionHours.toFixed(1)}hrs`, 'green');
+  save();
+}
+
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+function saveConfig() {
+  state.config.wake = document.getElementById('cfg-wake').value;
+  state.config.sleep = document.getElementById('cfg-sleep').value;
+  state.config.nap = document.getElementById('cfg-nap').value;
+  state.config.napDur = parseInt(document.getElementById('cfg-nap-dur').value)||30;
+  state.config.intensity = document.getElementById('cfg-intensity').value;
+  state.config.idleTimeout = parseInt(document.getElementById('cfg-idle').value)||20;
+  save(); showNotif('Config saved.','green');
+}
+
+function loadDefaults() {
+  state.tasks = [];
+  const defaults = [
+    {id:1,name:'Subject A — 50 min active output',section:'study',priority:'must',duration:50,time:'07:30',done:false},
+    {id:2,name:'Subject B — practice problems',section:'study',priority:'must',duration:50,time:'08:30',done:false},
+    {id:3,name:'Subject C — notes and writing',section:'study',priority:'must',duration:50,time:'09:30',done:false},
+    {id:4,name:'Subject D — vocabulary / drill',section:'study',priority:'should',duration:50,time:'10:30',done:false},
+    {id:5,name:'Teaching session prep',section:'work',priority:'must',duration:20,time:'11:45',done:false},
+    {id:6,name:'Teaching session',section:'work',priority:'must',duration:90,time:'12:00',done:false},
+    {id:7,name:'Side project planning (max 30 min)',section:'work',priority:'should',duration:30,time:'20:00',done:false},
+    {id:8,name:'Morning walk / water',section:'personal',priority:'must',duration:10,time:'06:45',done:false},
+    {id:9,name:'Night review + next-day plan',section:'personal',priority:'must',duration:20,time:'23:00',done:false},
+  ];
+  state.tasks = defaults;
+  renderAllTasks(); updateRings(); save();
+  showNotif('Default tasks loaded.','green');
+}
+
+function clearDay() {
+  if(!confirm('Clear all tasks? Cannot undo.')) return;
+  state.tasks = [];
+  renderAllTasks(); updateRings(); save();
+  showNotif('All tasks cleared.','warn');
+}
+
+function exportData() {
+  const data = {date: new Date().toDateString(), tasks: state.tasks, log: state.wardenLog, sessionHours: state.sessionHours, blocksCompleted: state.blocksCompleted};
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'warden-log-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+}
+
+function saveReview() {
+  const review = {text: document.getElementById('review-text').value, pattern: document.getElementById('review-pattern').value, rule: document.getElementById('review-rule').value};
+  if(!review.text){showNotif('Write your review first.','warn');return;}
+  addLog('REVIEW', 'Night review saved: '+review.rule);
+  localStorage.setItem('warden-last-review', JSON.stringify(review));
+  showNotif('Review saved. Run P-01 now.','green');
+  save();
+}
+
+// ─── 30-MIN REMINDER ─────────────────────────────────────────────────────────
+let reminderInterval = null;
+let reminderOn = false;
+let reminderMinutes = 30;
+
+const REMINDER_MESSAGES = [
+  {title:'BACK TO WORK', body:'30 minutes have passed. You should be in a study or work block right now. If you are not — start immediately. Phone out. Timer on.'},
+  {title:'CHECK YOUR PLAN', body:'Time checkpoint. What were you supposed to be doing? Open your task list. If you are idle, the avoidance loop is already running.'},
+  {title:'ARE YOU EXECUTING?', body:'This is your scheduled reminder. Not a suggestion. Check: is your timer running? Are you producing output? If no — sit down now.'},
+  {title:'30-MIN CHECKPOINT', body:'You set this reminder because you forget to work. Right now: pick one task. Start the 50-min timer. Do not negotiate with this alarm.'},
+  {title:'WARDEN REMINDER', body:'Another interval passed. The day is moving. Your tasks are not completing themselves. One task. Timer. Now.'},
+];
+let reminderMsgIndex = 0;
+
+function beep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const seq = [[880,0],[880,0.15],[1100,0.3],[1100,0.45],[880,0.65]];
+    seq.forEach(([freq, delay]) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'square';
+      gain.gain.setValueAtTime(0.18, ctx.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.12);
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + 0.15);
+    });
+  } catch(e) {}
+}
+
+function fireReminder() {
+  const msg = REMINDER_MESSAGES[reminderMsgIndex % REMINDER_MESSAGES.length];
+  reminderMsgIndex++;
+  beep();
+  addLog('REMINDER', 'Scheduled reminder fired — '+reminderMinutes+'min interval');
+  showOverlay(msg.title, msg.body, '→ Close this only after you have started your task or timer.');
+}
+
+function toggleReminder() {
+  if (reminderOn) {
+    clearInterval(reminderInterval);
+    reminderInterval = null;
+    reminderOn = false;
+    updateReminderUI();
+    addLog('REMINDER', 'Reminders disabled');
+    showNotif('Reminders OFF.', 'warn');
+  } else {
+    // Trigger beep to unblock AudioContext on user gesture
+    beep();
+    reminderOn = true;
+    reminderInterval = setInterval(fireReminder, reminderMinutes * 60 * 1000);
+    updateReminderUI();
+    addLog('REMINDER', 'Reminders enabled — every '+reminderMinutes+' min');
+    showNotif('Reminders ON — every '+reminderMinutes+' min.', 'green');
+  }
+}
+
+function updateReminderUI() {
+  const b1 = document.getElementById('btn-reminder');
+  const b2 = document.getElementById('btn-reminder-config');
+  if (b1) {
+    b1.textContent = reminderOn ? '🔔 REMINDER: ON' : '🔔 REMINDER: OFF';
+    b1.style.background = reminderOn ? 'var(--green)' : 'transparent';
+    b1.style.color = reminderOn ? '#000' : 'var(--green)';
+  }
+  if (b2) {
+    b2.textContent = reminderOn ? 'DISABLE' : 'ENABLE';
+    b2.style.background = reminderOn ? 'var(--red)' : 'transparent';
+    b2.style.color = reminderOn ? '#fff' : 'var(--green)';
+    b2.style.borderColor = reminderOn ? 'var(--red)' : 'var(--green)';
+  }
+}
+
+function saveReminderConfig() {
+  const val = parseInt(document.getElementById('cfg-reminder-interval').value) || 30;
+  reminderMinutes = Math.max(5, Math.min(120, val));
+  if (reminderOn) {
+    clearInterval(reminderInterval);
+    reminderInterval = setInterval(fireReminder, reminderMinutes * 60 * 1000);
+  }
+  showNotif('Reminder interval set to '+reminderMinutes+' min.', 'green');
+}
+
+// ─── READING TRACKER ─────────────────────────────────────────────────────────
+function setBook() {
+  const title = document.getElementById('book-title').value.trim();
+  const author = document.getElementById('book-author').value.trim();
+  const total = parseInt(document.getElementById('book-total-pages').value)||0;
+  const current = parseInt(document.getElementById('book-current-page').value)||0;
+  if(!title){showNotif('Book title required.','warn');return;}
+  if(!total){showNotif('Total pages required.','warn');return;}
+  state.reading.book = {title, author, totalPages: total, currentPage: current, addedDate: new Date().toDateString()};
+  renderReadingCurrent();
+  save(); showNotif('Book set: '+title,'green');
+  document.getElementById('book-title').value='';
+  document.getElementById('book-author').value='';
+  document.getElementById('book-total-pages').value='';
+  document.getElementById('book-current-page').value='';
+}
+
+function logReadingSession() {
+  const pages = parseInt(document.getElementById('reading-pages-today').value)||0;
+  const mins = parseInt(document.getElementById('reading-time-today').value)||0;
+  const note = document.getElementById('reading-note').value.trim();
+  if(!pages && !mins){showNotif('Enter pages or time.','warn');return;}
+  if(!state.reading.book){showNotif('Set a book first.','warn');return;}
+  if(mins < 30 && mins > 0) showNotif('Under 30 min. Target is 30–60.','warn');
+  const session = {date: new Date().toDateString(), pages, mins, note, ts: Date.now()};
+  state.reading.sessions.unshift(session);
+  state.reading.book.currentPage = Math.min(state.reading.book.currentPage + pages, state.reading.book.totalPages);
+  state.reading.totalPages += pages;
+  state.reading.totalMins += mins;
+  updateReadingStreak();
+  renderReadingCurrent();
+  renderReadingHistory();
+  updateReadingStats();
+  addLog('READING', `Session: ${pages}pg, ${mins}min — ${state.reading.book.title}`);
+  save();
+  showNotif(`Logged: ${pages}pg, ${mins}min.`,'green');
+  document.getElementById('reading-pages-today').value='';
+  document.getElementById('reading-time-today').value='';
+  document.getElementById('reading-note').value='';
+  if(state.reading.book.currentPage >= state.reading.book.totalPages)
+    showOverlay('BOOK COMPLETE','You finished '+state.reading.book.title+'. Set your next book.','→ Go to Reading panel and set the next book now.');
+}
+
+function updateReadingStreak() {
+  const today = new Date().toDateString();
+  const yesterday = new Date(Date.now()-86400000).toDateString();
+  const sessions = state.reading.sessions;
+  if(!sessions.length){state.reading.streak=0;return;}
+  if(sessions[0].date === today){
+    const prevStreak = state.reading.streak;
+    const hasYesterday = sessions.some(s=>s.date===yesterday);
+    state.reading.streak = (hasYesterday || prevStreak===0) ? Math.max(state.reading.streak,1) : 1;
+  }
+}
+
+function renderReadingCurrent() {
+  const el = document.getElementById('reading-current-display');
+  if(!el) return;
+  const b = state.reading.book;
+  if(!b){el.innerHTML='<div style="font-size:13px;color:var(--muted);font-family:Space Mono,monospace;">No book set.</div>';return;}
+  const pct = b.totalPages ? Math.round(b.currentPage/b.totalPages*100) : 0;
+  const remaining = b.totalPages - b.currentPage;
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+      <div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;color:#fff;">${b.title}</div>
+        ${b.author?`<div style="font-size:12px;color:var(--muted);font-family:'Space Mono',monospace;">${b.author}</div>`:''}
+      </div>
+      <div style="text-align:right;">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;color:#cc88ff;">${pct}%</div>
+        <div style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;">COMPLETE</div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;font-family:'Space Mono',monospace;color:var(--muted);margin-bottom:6px;">
+      <span>PAGE ${b.currentPage} OF ${b.totalPages}</span><span>${remaining} PAGES LEFT</span>
+    </div>
+    <div style="height:6px;background:var(--border2);border-radius:3px;overflow:hidden;">
+      <div style="height:100%;background:#cc88ff;border-radius:3px;width:${pct}%;transition:width 0.4s;"></div>
+    </div>`;
+}
+
+function renderReadingHistory() {
+  const el = document.getElementById('reading-history');
+  if(!el) return;
+  const sessions = state.reading.sessions.slice(0,20);
+  if(!sessions.length){el.innerHTML='<div style="font-size:11px;color:var(--muted);font-family:Space Mono,monospace;">No sessions yet.</div>';return;}
+  el.innerHTML = sessions.map(s=>`
+    <div style="border-bottom:1px solid var(--border);padding:8px 0;display:flex;gap:12px;align-items:flex-start;">
+      <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);flex-shrink:0;min-width:90px;">${s.date}</div>
+      <div style="flex:1;">
+        <div style="font-size:12px;color:var(--text);font-family:'Space Mono',monospace;">${s.pages}pg · ${s.mins}min</div>
+        ${s.note?`<div style="font-size:11px;color:var(--muted);margin-top:2px;">${s.note}</div>`:''}
+      </div>
+    </div>`).join('');
+}
+
+function updateReadingStats() {
+  const s = document.getElementById('read-streak');
+  const p = document.getElementById('read-total-pages');
+  const m = document.getElementById('read-total-mins');
+  if(s) s.textContent = state.reading.streak;
+  if(p) p.textContent = state.reading.totalPages;
+  if(m) m.textContent = state.reading.totalMins;
+}
+
+// ─── SKILL TRACKER ────────────────────────────────────────────────────────────
+function setSkill() {
+  const name = document.getElementById('skill-name-input').value.trim();
+  const goalHrs = parseFloat(document.getElementById('skill-goal-hrs').value)||0;
+  const desc = document.getElementById('skill-desc').value.trim();
+  if(!name){showNotif('Skill name required.','warn');return;}
+  state.skill.active = {name, goalHrs, desc, addedDate: new Date().toDateString(), totalMins: 0, sessions: 0};
+  renderSkillCurrent();
+  updateSkillStats();
+  save(); showNotif('Skill set: '+name,'green');
+  document.getElementById('skill-name-input').value='';
+  document.getElementById('skill-goal-hrs').value='';
+  document.getElementById('skill-desc').value='';
+}
+
+function logSkillSession() {
+  const mins = parseInt(document.getElementById('skill-time-today').value)||0;
+  const milestone = document.getElementById('skill-milestone').value.trim();
+  const note = document.getElementById('skill-note').value.trim();
+  if(!mins){showNotif('Enter time spent.','warn');return;}
+  if(!state.skill.active){showNotif('Set a skill first.','warn');return;}
+  const session = {date: new Date().toDateString(), mins, milestone, note, ts: Date.now()};
+  state.skill.sessions.unshift(session);
+  state.skill.active.totalMins += mins;
+  state.skill.active.sessions++;
+  state.skill.totalMins += mins;
+  updateSkillStreak();
+  renderSkillCurrent();
+  renderSkillHistory();
+  updateSkillStats();
+  addLog('SKILL', `Session: ${mins}min — ${state.skill.active.name}${milestone?' ['+milestone+']':''}`);
+  save();
+  showNotif(`Logged: ${mins}min on ${state.skill.active.name}.`,'green');
+  document.getElementById('skill-time-today').value='';
+  document.getElementById('skill-milestone').value='';
+  document.getElementById('skill-note').value='';
+}
+
+function updateSkillStreak() {
+  const today = new Date().toDateString();
+  const yesterday = new Date(Date.now()-86400000).toDateString();
+  const sessions = state.skill.sessions;
+  if(!sessions.length){state.skill.streak=0;return;}
+  if(sessions[0].date===today){
+    const hasYest = sessions.some(s=>s.date===yesterday);
+    state.skill.streak = (hasYest||state.skill.streak===0) ? Math.max(state.skill.streak,1) : 1;
+  }
+}
+
+function renderSkillCurrent() {
+  const el = document.getElementById('skill-current-display');
+  if(!el) return;
+  const sk = state.skill.active;
+  if(!sk){el.innerHTML='<div style="font-size:13px;color:var(--muted);font-family:Space Mono,monospace;">No skill set.</div>';return;}
+  const totalHrs = (sk.totalMins/60);
+  const goalPct = sk.goalHrs ? Math.min(Math.round(totalHrs/sk.goalHrs*100),100) : 0;
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+      <div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;color:#fff;">${sk.name}</div>
+        ${sk.desc?`<div style="font-size:12px;color:var(--muted);margin-top:2px;">${sk.desc}</div>`:''}
+      </div>
+      <div style="text-align:right;">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;color:#ff88aa;">${totalHrs.toFixed(1)}<span style="font-size:14px;">hrs</span></div>
+        ${sk.goalHrs?`<div style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;">OF ${sk.goalHrs}hr GOAL</div>`:''}
+      </div>
+    </div>
+    ${sk.goalHrs?`
+    <div style="display:flex;justify-content:space-between;font-size:11px;font-family:'Space Mono',monospace;color:var(--muted);margin-bottom:6px;">
+      <span>PROGRESS</span><span>${goalPct}%</span>
+    </div>
+    <div style="height:6px;background:var(--border2);border-radius:3px;overflow:hidden;">
+      <div style="height:100%;background:#ff88aa;border-radius:3px;width:${goalPct}%;transition:width 0.4s;"></div>
+    </div>`:''}`;
+  // Update standalone bar
+  const bar = document.getElementById('skill-goal-bar');
+  const pctEl = document.getElementById('skill-goal-pct');
+  const labelEl = document.getElementById('skill-goal-label');
+  if(bar) bar.style.width = goalPct+'%';
+  if(pctEl) pctEl.textContent = goalPct+'%';
+  if(labelEl) labelEl.textContent = sk.goalHrs
+    ? `${totalHrs.toFixed(1)} hrs done · ${Math.max(0,sk.goalHrs-totalHrs).toFixed(1)} hrs remaining`
+    : 'No goal target set';
+}
+
+function renderSkillHistory() {
+  const el = document.getElementById('skill-history');
+  if(!el) return;
+  const sessions = state.skill.sessions.slice(0,20);
+  if(!sessions.length){el.innerHTML='<div style="font-size:11px;color:var(--muted);font-family:Space Mono,monospace;">No sessions yet.</div>';return;}
+  el.innerHTML = sessions.map(s=>`
+    <div style="border-bottom:1px solid var(--border);padding:8px 0;display:flex;gap:12px;align-items:flex-start;">
+      <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);flex-shrink:0;min-width:90px;">${s.date}</div>
+      <div style="flex:1;">
+        <div style="font-size:12px;color:var(--text);font-family:'Space Mono',monospace;">${s.mins}min${s.milestone?' · '+s.milestone:''}</div>
+        ${s.note?`<div style="font-size:11px;color:var(--muted);margin-top:2px;">${s.note}</div>`:''}
+      </div>
+    </div>`).join('');
+}
+
+function updateSkillStats() {
+  const h = document.getElementById('skill-total-hrs');
+  const ss = document.getElementById('skill-sessions');
+  const st = document.getElementById('skill-streak');
+  if(h) h.textContent = (state.skill.totalMins/60).toFixed(1);
+  if(ss) ss.textContent = state.skill.active ? state.skill.active.sessions : 0;
+  if(st) st.textContent = state.skill.streak;
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+load();
+renderSchedule();
+renderAllTasks();
+updateRings();
+document.getElementById('streak-num').textContent = state.streak;
+document.getElementById('streak-status').textContent = state.streak+' DAYS';
+document.getElementById('blocks-done-status').textContent = state.blocksCompleted+' / 4';
+document.getElementById('audit-blocks').textContent = state.blocksCompleted;
+document.getElementById('audit-triggers').textContent = state.avoidanceTriggers;
+document.getElementById('audit-overrides').textContent = state.overridesUsed;
+if(state.sessionHours) document.getElementById('session-hours').textContent = state.sessionHours.toFixed(1);
+for(let i=1;i<=state.blocksCompleted;i++){const bd=document.getElementById('bd-'+i);if(bd)bd.classList.add('done');}
+// Apply anchor state
+Object.entries(state.anchors).forEach(([key,val])=>{
+  if(!val) return;
+  const block = document.getElementById('anchor-'+key);
+  if(block){block.classList.add('done');const cb=block.querySelector('input[type=checkbox]');if(cb)cb.checked=true;}
+});
+// Apply config to form
+document.getElementById('cfg-wake').value = state.config.wake;
+document.getElementById('cfg-sleep').value = state.config.sleep;
+document.getElementById('cfg-nap').value = state.config.nap;
+document.getElementById('cfg-nap-dur').value = state.config.napDur;
+document.getElementById('cfg-intensity').value = state.config.intensity;
+document.getElementById('cfg-idle').value = state.config.idleTimeout;
+
+updateAvoidanceMeter();
+setInterval(updateClock, 1000);
+updateClock();
+renderReadingCurrent();
+renderReadingHistory();
+updateReadingStats();
+renderSkillCurrent();
+renderSkillHistory();
+updateSkillStats();
+addLog('SYSTEM', 'Warden active — surveillance running');
+</script>
+</body>
+</html>
